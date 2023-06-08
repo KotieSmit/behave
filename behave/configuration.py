@@ -584,16 +584,52 @@ def config_filenames():
                 yield filename
 
 
-def load_configuration(defaults, verbose=False):
+def load_configuration(defaults, verbose=False, env=None):
     for filename in config_filenames():
-        if verbose:
-            print('Loading config defaults from "%s"' % filename)
-        defaults.update(read_configuration(filename, verbose))
-
+        if not env:
+            if verbose:
+                print('Loading config defaults from "%s"' % filename)
+            defaults.update(read_configuration(filename, verbose))
+        else:
+            env_filename = filename.replace("behave.", f"behave_{env}.")
+            if env != '' and os.path.isfile(env_filename):
+                if verbose:
+                    print(f'Applying {env} config on top of config from "{env_filename}')
+                config = read_configuration(f'{env_filename}')
+                default_userdata = defaults['userdata']
+                env_userdata = config.pop('userdata')
+                default_userdata.update(env_userdata)
+                defaults.update(config)
+                defaults['userdata'] = default_userdata
     if verbose:
         print("Using CONFIGURATION DEFAULTS:")
         for k, v in sorted(six.iteritems(defaults)):
             print("%18s: %s" % (k, v))
+
+
+# --env--
+# def load_configuration(defaults, verbose=False, env=None):
+#     for filename in config_filenames():
+#         if not env:
+#             if verbose:
+#                 print('Loading config defaults from "%s"' % filename)
+#             defaults.update(read_configuration(filename))
+#         else:
+#             env_filename = filename.replace("behave.", f"behave_{env}.")
+#             if env != '' and os.path.isfile(env_filename):
+#                 if verbose:
+#                     print(f'Aplying {env} config on top of config from "{env_filename}')
+#                 config = read_configuration(f'{env_filename}')
+#                 default_userdata = defaults['userdata']
+#                 env_userdata = config.pop('userdata')
+#                 default_userdata.update(env_userdata)
+#                 defaults.update(config)
+#                 defaults['userdata'] = default_userdata
+
+#     if verbose:
+#         print("Using defaults:")
+#         for k, v in six.iteritems(defaults):
+#             print("%15s %s" % (k, v))
 
 
 def setup_parser():
@@ -644,6 +680,7 @@ class Configuration(object):
         junit=False,
         stage=None,
         userdata={},
+        env='',
         # -- SPECIAL:
         default_format="pretty",    # -- Used when no formatters are configured.
         default_tags="",            # -- Used when no tags are defined.
@@ -734,6 +771,21 @@ class Configuration(object):
             if key.startswith("_") and key not in self.cmdline_only_options:
                 continue
             setattr(self, key, value)
+        if load_config:
+            load_configuration(self.defaults, verbose=verbose, env=os.getenv('env',None))
+# #         if load_config:
+#              load_configuration(self.defaults, verbose=verbose)
+#         parser = setup_parser()
+#         parser.set_defaults(**self.defaults)
+#         args = parser.parse_args(command_args)
+#         for key, value in six.iteritems(args.__dict__):
+#             if key.startswith("_") and key not in self.cmdline_only_options:
+#                 continue
+#             setattr(self, key, value)
+#         if load_config:
+#             load_configuration(self.defaults, verbose=verbose, env=os.getenv('env',None))
+#         self.paths = [os.path.normpath(path) for path in self.paths]
+
 
         # -- ATTRIBUTE-NAME-CLEANUP:
         self.tag_expression = None
